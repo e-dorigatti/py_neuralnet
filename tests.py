@@ -1,5 +1,6 @@
 from neuralnet import *
 
+from random import randint
 import matplotlib.pyplot as plt
 
 def test_xor_value(nnet):

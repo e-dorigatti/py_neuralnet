@@ -1,4 +1,3 @@
-from random import random, randint
 from math import exp
 import numpy as np
 
