@@ -41,15 +41,21 @@ def test_xor_learning():
     nnet = NeuralNetwork([2, 2, 1], sigmoid, sigmoid_der)
 
     graph_data = []
-    for i in range(1,10001):
-        # a decreasing learning rate roughly halves the convergence time!
+    last = []
+    i = avg_error = 1
+
+    while avg_error > 0.0025 and i < 50000:
+        i += 1
         learning_rate = 5000.0 / (5000.0 + i)
 
         sample = training_examples[randint(0, len(training_examples) -1)]
-        err = nnet.backprop(sample[0], sample[1], learning_rate)
+        last.append(nnet.backprop(sample[0], sample[1], learning_rate))
 
-        if i % 100 == 0: graph_data.append((i, err, learning_rate))
         if i % 1000 == 0: print 'iteration ', i
+        if i % 100 == 0:
+            avg_error = sum(last) / float(len(last))
+            last = []
+            graph_data.append((i, avg_error, learning_rate))
 
     # plot a graph with error and learning rate
     fig, ax = plt.subplots()
@@ -78,14 +84,15 @@ def test_xor_learning():
     plt.title('Training error and learning rate vs. iterations')
     plt.show()
 
-    return nnet
+    return avg_error, nnet
 
 if __name__ == '__main__':
     print 'creating a neural network and using it to compute the xor function:'
     test_xor_value(None)
 
     print '\ncreating a neural network and training it to compute the xor fn:'
-    nnet = test_xor_learning()
+    error, nnet = test_xor_learning()
+    print 'neural network successfully trained with error', error
 
     print '\ntesting the neural network just trained'
     test_xor_value(nnet)
