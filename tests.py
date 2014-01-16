@@ -1,4 +1,5 @@
 from neuralnet import *
+from utils import *
 
 from random import randint
 import matplotlib.pyplot as plt
@@ -9,11 +10,8 @@ def test_xor_value(nnet):
     # two inputs, one hidden layer with two neurons and 
     # one output
 
-    sigmoid = lambda x: 1.0/(1.0+exp(-x))
-    sigmoid_der = lambda x: sigmoid(x) * (1 - sigmoid(x))
-
     if nnet is None:
-        nnet = NeuralNetwork([2, 2, 1], sigmoid, sigmoid_der)
+        nnet = NeuralNetwork([2, 2, 1], sigmoid, d_dx_sigmoid)
         nnet.layers[1].weights = np.array([ \
             [ 30, -20, -20 ],
             [-10,  20,  20 ]])
@@ -35,10 +33,7 @@ def test_xor_learning():
         [[1, 0], [1]], \
         [[1, 1], [0]]]
 
-    sigmoid = lambda x: 1.0/(1.0+exp(-x))
-    sigmoid_der = lambda x: sigmoid(x) * (1 - sigmoid(x))
-
-    nnet = NeuralNetwork([2, 2, 1], sigmoid, sigmoid_der)
+    nnet = NeuralNetwork([2, 2, 1], sigmoid, d_dx_sigmoid)
 
     graph_data = []
     last = []
