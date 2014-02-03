@@ -8,7 +8,7 @@ class Layer:
         self.previous = prev_layer
         self.successive = succ_layer
         self.weights = np.random.random((neurons, prev_neurons + 1)) - 0.5
-        self.weights = 2 * self.weights / neurons
+        #self.weights = 2 * self.weights / neurons
         self.activation = activation
         self.activation_derivative = activation_derivative
 
