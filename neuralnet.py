@@ -1,5 +1,6 @@
 from math import exp
 import numpy as np
+import utils
 
 class Layer:
     def __init__(self, neurons, prev_neurons, prev_layer, succ_layer, \
@@ -8,7 +9,6 @@ class Layer:
         self.previous = prev_layer
         self.successive = succ_layer
         self.weights = np.random.random((neurons, prev_neurons + 1)) - 0.5
-        #self.weights = 2 * self.weights / neurons
         self.activation = activation
         self.activation_derivative = activation_derivative
 
@@ -35,8 +35,11 @@ class InputLayer(Layer):
         return self.val
 
 class NeuralNetwork:
-    def __init__(self, ns, activation, activation_derivative):
+    def __init__(self, ns, activation='sigmoid', activation_derivative=None):
         self.layers = []
+        if type(activation) is str:
+            activation, activation_derivative = utils.activations[activation]
+
         self.activation = np.vectorize(activation, otypes = [np.float])
         self.activation_derivative = np.vectorize(activation_derivative, \
             otypes = [np.float])
@@ -62,7 +65,6 @@ class NeuralNetwork:
         return list(self.layers[-1].value().T[0])
 
     def backprop(self, inputs, wanted_outputs, learning_rate):
-        #out = np.array([self.value(inputs)]).T
         self.layers[0].setValue(inputs)
         out = self.layers[-1].value()
         error = 0.5 * np.square(wanted_outputs - out).sum()
@@ -72,8 +74,8 @@ class NeuralNetwork:
         wanted_outputs = np.array([wanted_outputs]).T
 
         # find output layer deltas
-        deltas = (wanted_outputs - out) * self.activation_derivative( \
-            self.layers[-1].v)
+        deltas = ((wanted_outputs - out) * self.activation_derivative(
+            self.layers[-1].v))
 
         for i in range(len(self.layers) - 1, 0, -1):
             # previous layer's values, including the bias

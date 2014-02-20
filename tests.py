@@ -33,7 +33,7 @@ def test_xor_learning():
         [[1, 0], [1]], \
         [[1, 1], [0]]]
 
-    nnet = NeuralNetwork([2, 2, 1], sigmoid, d_dx_sigmoid)
+    nnet = NeuralNetwork([2, 2, 1], activation = 'sigmoid')
 
     graph_data = []
     last = []

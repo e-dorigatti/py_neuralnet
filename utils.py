@@ -12,3 +12,8 @@ def tanh(x):
 def d_dx_tanh(x):
     return 1 - tanh(x)**2
 
+# some common activations
+activations = {
+    'sigmoid': [ sigmoid, d_dx_sigmoid ],
+    'tanh': [tanh, d_dx_tanh ],
+}
