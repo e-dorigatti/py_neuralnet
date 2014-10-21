@@ -27,7 +27,10 @@ class InputLayer(Layer):
         self.weights = None
 
     def setValue(self, inputs):
-        self.val = np.array([inputs]).T
+        if isinstance(inputs, np.ndarray):
+            self.val = inputs.T
+        else:
+            self.val = np.array([inputs]).T
         self.y = self.val
         self.v = self.val
 
@@ -94,3 +97,25 @@ class NeuralNetwork:
             deltas = (a * b)[1:] 
 
         return error
+
+    def output_derivatives(self):
+        """
+        calculate the derivatives of the outputs with respect to the inputs
+
+        returns an NxM matrix, where N is the number of output neurons and M
+        is the number of input neurons, such that the element at row i and
+        column j is the derivative of the i-th output neuron with respect to
+        the j-th input neuron
+        """
+        prev_layer = None
+        for i in range(len(self.layers) - 1, 0, -1):
+            layer = self.layers[i]
+
+            this_layer = layer.weights * np.concatenate(
+                [self.activation_derivative(layer.v)] * layer.weights.shape[1],
+                axis = 1)
+
+            prev_layer = (prev_layer.dot(this_layer) if prev_layer is not None
+                else this_layer)[:, 1:]
+
+        return prev_layer

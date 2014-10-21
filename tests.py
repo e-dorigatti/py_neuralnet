@@ -1,7 +1,7 @@
 from neuralnet import *
 from utils import *
 
-from random import randint
+from random import randint, uniform
 import matplotlib.pyplot as plt
 
 def test_xor_value(nnet):
@@ -81,6 +81,56 @@ def test_xor_learning():
 
     return avg_error, nnet
 
+def test_derivatives():
+    function = lambda x: (x**2)
+    nnet = NeuralNetwork([1, 2, 1])
+
+    i = avg_error = 1
+    last = []
+    while i < 25000:
+        i += 1
+        learning_rate = 5000.0 / (5000.0 + i)
+
+        input = [ uniform(-1, 1) ]
+        output = [ function(input[0]) ]
+        last.append(nnet.backprop(input, output, learning_rate))
+
+        if i % 1000 == 0:
+            avg_error = sum(last) / len(last)
+            last = []
+            print 'iteration', i, 'error', avg_error, 'learning rate', learning_rate
+
+    plot = { 
+        'x': [], 'f': [],
+        'nnet': [], 'nnet_dx': [],
+        'dq': [] # difference quotient for estimating the derivative
+    }
+
+    h = 0.01
+    for x in np.arange(-1, 1, h):
+        plot['x'].append(x)
+        plot['f'].append(function(x))
+        plot['nnet'].append(nnet.value([x])[0])
+        plot['nnet_dx'].append(nnet.output_derivatives()[0][0])
+        if len(plot['x']) > 1:
+            plot['dq'].append( (plot['nnet'][-1] - plot['nnet'][-2]) / h)
+    plot['dq'].append( (plot['nnet'][-1] - plot['nnet'][-2]) / h)
+
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.plot(plot['x'], plot['f'], label='function')
+    plt.plot(plot['x'], plot['nnet'], label='learned function')
+    plt.legend()
+    plt.grid()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(plot['x'], plot['nnet_dx'], c='b', ls='-', label='derivative from nnetwork')
+    plt.plot(plot['x'], plot['dq'], c='r', ls='--', label='analytical derivative')
+    plt.legend()
+    plt.grid()
+
+    plt.show()
+
 if __name__ == '__main__':
     print 'creating a neural network and using it to compute the xor function:'
     test_xor_value(None)
@@ -91,3 +141,7 @@ if __name__ == '__main__':
 
     print '\ntesting the neural network just trained'
     test_xor_value(nnet)
+
+    print '\ntraining a neural network with the function x**2 and testing the derivatives'
+    test_derivatives()
+
