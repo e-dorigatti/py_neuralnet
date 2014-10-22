@@ -28,10 +28,10 @@ def test_xor_learning():
     # it to compute the xor between its arguments
 
     training_examples = [ \
-        [[0, 0], [0]], \
-        [[0, 1], [1]], \
-        [[1, 0], [1]], \
-        [[1, 1], [0]]]
+        ([0, 0], [0]), \
+        ([0, 1], [1]), \
+        ([1, 0], [1]), \
+        ([1, 1], [0])]
 
     nnet = NeuralNetwork([2, 2, 1], activation = 'sigmoid')
 
@@ -43,8 +43,9 @@ def test_xor_learning():
         i += 1
         learning_rate = 5000.0 / (5000.0 + i)
 
-        sample = training_examples[randint(0, len(training_examples) -1)]
-        last.append(nnet.backprop(sample[0], sample[1], learning_rate))
+        input, correct_output = training_examples[randint(0, len(training_examples) -1)]
+        _ = nnet.value(input)
+        last.append(nnet.backprop(correct_output, learning_rate))
 
         if i % 1000 == 0: print 'iteration ', i
         if i % 100 == 0:
@@ -93,7 +94,8 @@ def test_derivatives():
 
         input = [ uniform(-1, 1) ]
         output = [ function(input[0]) ]
-        last.append(nnet.backprop(input, output, learning_rate))
+        _ = nnet.value(input)
+        last.append(nnet.backprop(output, learning_rate))
 
         if i % 1000 == 0:
             avg_error = sum(last) / len(last)

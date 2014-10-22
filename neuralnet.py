@@ -19,12 +19,32 @@ class Layer:
         self.y = self.activation(self.v)
         return self.y
 
+    def backpropagate(self, deltas, learning_rate):
+        # previous layer's values, including the bias
+        prev_y = np.vstack([1, self.previous.y])
+        prev_v = np.vstack([1, self.previous.v])
+
+        # compute gradient and update weights
+        gradient = deltas * prev_y.T
+        self.weights += gradient * learning_rate
+
+        # calculate deltas for the previous layer
+        a = self.activation_derivative(prev_v)
+        b = self.weights.T.dot(deltas)
+
+        # don't need delta for the bias unit
+        deltas = (a * b)[1:]
+
+        self.previous.backpropagate(deltas, learning_rate)
+
+
 class InputLayer(Layer):
-    def __init__(self, neurons):
-        Layer.__init__(self, neurons, 0, None, None, None, None)
+    def __init__(self, *args, **kwargs):
+        Layer.__init__(self, *args, **kwargs)
 
         self.val = []
         self.weights = None
+        self.previous = None
 
     def setValue(self, inputs):
         if isinstance(inputs, np.ndarray):
@@ -37,9 +57,18 @@ class InputLayer(Layer):
     def value(self):
         return self.val
 
+    def backpropagate(self, deltas, learning_rate):
+        pass
+
+
+class OutputLayer(Layer):
+    def backpropagate(self, wanted_outputs, learning_rate):
+        deltas = ((wanted_outputs - self.y) * self.activation_derivative(self.v))
+        Layer.backpropagate(self, deltas, learning_rate)
+
+
 class NeuralNetwork:
     def __init__(self, ns, activation='sigmoid', activation_derivative=None):
-        self.layers = []
         if type(activation) is str:
             activation, activation_derivative = utils.activations[activation]
 
@@ -48,12 +77,17 @@ class NeuralNetwork:
             otypes = [np.float])
 
         # layer creation
+        self.layers = []
         for i in range(len(ns)):
             if i == 0:
-                self.layers.append(InputLayer(ns[i]))
+                layer_type = InputLayer
+            elif i == len(ns) - 1:
+                layer_type = OutputLayer
             else:
-                self.layers.append(Layer(ns[i], ns[i - 1], None, None, \
-                    self.activation, self.activation_derivative))
+                layer_type = Layer
+
+            self.layers.append(layer_type(ns[i], ns[i - 1], None, None, \
+                self.activation, self.activation_derivative))
 
         # layer linking
         for i in range(len(ns)):
@@ -67,34 +101,12 @@ class NeuralNetwork:
         self.layers[0].setValue(inputs)
         return list(self.layers[-1].value().T[0])
 
-    def backprop(self, inputs, wanted_outputs, learning_rate):
-        self.layers[0].setValue(inputs)
-        out = self.layers[-1].value()
-        error = 0.5 * np.square(wanted_outputs - out).sum()
+    def backprop(self, wanted_outputs, learning_rate):
+        error = 0.5 * np.square(wanted_outputs - self.layers[-1].y).sum()
 
-        # transform into column vectors
-        inputs = np.array([inputs]).T
+        # transform into column vector and backpropagate
         wanted_outputs = np.array([wanted_outputs]).T
-
-        # find output layer deltas
-        deltas = ((wanted_outputs - out) * self.activation_derivative(
-            self.layers[-1].v))
-
-        for i in range(len(self.layers) - 1, 0, -1):
-            # previous layer's values, including the bias
-            prev_y = np.vstack([1, self.layers[i - 1].y])
-            prev_v = np.vstack([1, self.layers[i - 1].v])
-
-            # compute gradient and update weights
-            gradient = deltas * prev_y.T
-            self.layers[i].weights += gradient * learning_rate
-
-            # calculate deltas for the previous layer
-            a = self.activation_derivative(prev_v)
-            b = self.layers[i].weights.T.dot(deltas)
-
-            # don't need delta for the bias unit
-            deltas = (a * b)[1:] 
+        self.layers[-1].backpropagate(wanted_outputs, learning_rate)
 
         return error
 
@@ -102,7 +114,7 @@ class NeuralNetwork:
         """
         calculate the derivatives of the outputs with respect to the inputs
 
-        returns an NxM matrix, where N is the number of output neurons and M
+        returns a numpy NxM array, where N is the number of output neurons and M
         is the number of input neurons, such that the element at row i and
         column j is the derivative of the i-th output neuron with respect to
         the j-th input neuron
