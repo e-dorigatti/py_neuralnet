@@ -1,114 +1,102 @@
-from math import exp
+from math import exp, sqrt
 import numpy as np
-import utils
-
-class Layer:
-    def __init__(self, neurons, prev_neurons, prev_layer, succ_layer, \
-            activation, activation_derivative):
-
-        self.previous = prev_layer
-        self.successive = succ_layer
-        self.weights = np.random.random((neurons, prev_neurons + 1)) - 0.5
-        self.activation = activation
-        self.activation_derivative = activation_derivative
-
-    def value(self):
-        # don't forget the bias term!
-        prev = np.vstack([1, self.previous.value()])
-        self.v = self.weights.dot(prev)
-        self.y = self.activation(self.v)
-        return self.y
-
-    def backpropagate(self, deltas, learning_rate):
-        # previous layer's values, including the bias
-        prev_y = np.vstack([1, self.previous.y])
-        prev_v = np.vstack([1, self.previous.v])
-
-        # compute gradient and update weights
-        gradient = deltas * prev_y.T
-        self.weights += gradient * learning_rate
-
-        # calculate deltas for the previous layer
-        a = self.activation_derivative(prev_v)
-        b = self.weights.T.dot(deltas)
-
-        # don't need delta for the bias unit
-        deltas = (a * b)[1:]
-
-        self.previous.backpropagate(deltas, learning_rate)
+import errors, activations
+import itertools
 
 
-class InputLayer(Layer):
-    def __init__(self, *args, **kwargs):
-        Layer.__init__(self, *args, **kwargs)
-
-        self.val = []
-        self.weights = None
-        self.previous = None
-
-    def setValue(self, inputs):
-        if isinstance(inputs, np.ndarray):
-            self.val = inputs.T
-        else:
-            self.val = np.array([inputs]).T
-        self.y = self.val
-        self.v = self.val
-
-    def value(self):
-        return self.val
-
-    def backpropagate(self, deltas, learning_rate):
-        pass
+def _reversed_zip(*args):
+    return itertools.izip(*[reversed(arg) for arg in args])
 
 
-class OutputLayer(Layer):
-    def backpropagate(self, wanted_outputs, learning_rate):
-        deltas = ((wanted_outputs - self.y) * self.activation_derivative(self.v))
-        Layer.backpropagate(self, deltas, learning_rate)
+def _to_numpy_column(l):
+    if isinstance(l, np.ndarray):
+        ret = l.T if l.shape[0] != 1 else l
+    else:
+        ret = np.array([l]).T
+
+    assert isinstance(ret, np.ndarray) and len(ret.shape) == 2 and ret.shape[1] == 1
+    return ret
 
 
 class NeuralNetwork:
-    def __init__(self, ns, activation='sigmoid', activation_derivative=None):
-        if type(activation) is str:
-            activation, activation_derivative = utils.activations[activation]
+    def __init__(self, ns, activation='sigmoid', error='quadratic'):
+        self.activation = activations.common.get(activation, activation)
+        self.error = errors.common.get(error, error)
+        self.ns = ns
+        
+        self.v = [ np.zeros((n, 1)) for n in ns ]
+        self.y = [ np.zeros((n, 1)) for n in ns ]
 
-        self.activation = np.vectorize(activation, otypes = [np.float])
-        self.activation_derivative = np.vectorize(activation_derivative, \
-            otypes = [np.float])
-
-        # layer creation
-        self.layers = []
-        for i in range(len(ns)):
-            if i == 0:
-                layer_type = InputLayer
-            elif i == len(ns) - 1:
-                layer_type = OutputLayer
-            else:
-                layer_type = Layer
-
-            self.layers.append(layer_type(ns[i], ns[i - 1], None, None, \
-                self.activation, self.activation_derivative))
-
-        # layer linking
-        for i in range(len(ns)):
-            if i > 0:
-                self.layers[i].previous = self.layers[i - 1]
-
-            if i < len(ns) - 1:
-                self.layers[i].successive = self.layers[i + 1]
+        # black magic random initialization range 
+        self.weights = [ sqrt(24 / (n1 + n2)) * (np.random.random((n1, n2 + 1)) - 0.5)
+            for n1, n2 in itertools.izip(ns[1:], ns[:-1]) ]
 
     def value(self, inputs):
-        self.layers[0].setValue(inputs)
-        return list(self.layers[-1].value().T[0])
+        """
+        Calculates the output value of the neural network using the given inputs.
 
-    def backprop(self, wanted_outputs, learning_rate):
-        error = 0.5 * np.square(wanted_outputs - self.layers[-1].y).sum()
+        Inputs can be either python lists or numpy row/column arrays
+        """
+        inputs = _to_numpy_column(inputs)
 
-        # transform into column vector and backpropagate
-        wanted_outputs = np.array([wanted_outputs]).T
-        self.layers[-1].backpropagate(wanted_outputs, learning_rate)
+        self.y[0] = self.v[0] = inputs
+        for i, weights in enumerate(self.weights):
+            prev = np.vstack([1, self.y[i]])
+            self.v[i + 1] = weights.dot(prev)
+            self.y[i + 1] = self.activation.f(self.v[i + 1])
 
-        return error
+        return self.y[-1]
+
+    def calculate_gradients(self, wanted_outputs, actual_outputs):
+        """
+        Calculates the partial derivatives of the error with respect to the weights
+        given the actual outputs of the network and the desired outputs.
+
+        Returns a list whose each element is a numpy array with the same shape as
+        the corresponding weight matrix.
+        """
+        wanted_outputs = _to_numpy_column(wanted_outputs)
+        actual_outputs = _to_numpy_column(actual_outputs)
+
+        a = self.error.deltas(wanted_outputs, actual_outputs)
+        b = self.activation.f_prime(self.v[-1])
+        deltas = (a * b)
+
+        gradients = list()
+        for weights, y, v in _reversed_zip(self.weights, self.y[:-1], self.v[:-1]):
+            prev_y = np.vstack([1, y])
+            prev_v = np.vstack([1, v])
+
+            gradients.append(deltas * prev_y.T)
+            assert gradients[-1].shape == weights.shape
+
+            a = self.activation.f_prime(prev_v)
+            b = weights.T.dot(deltas)
+            deltas = (a * b)[1:]
+
+        return reversed(gradients)
+
+    def update_weights(self, gradients, learning_rate):
+        """
+        Update the weights according to the gradient descent algorithm using
+        the given gradient (as computed by calculate_gradients) and the given
+        learning rate.
+        """
+        for weights, gradient in itertools.izip(self.weights, gradients):
+            assert gradient.shape == weights.shape
+            weights += gradient * learning_rate;
+
+    def backpropagate(self, wanted_outputs, actual_outputs, learning_rate):
+        """
+        Update the weights of the network in order to reduce the prediction error.
+        """
+        actual_outputs = _to_numpy_column(actual_outputs)
+        wanted_outputs = _to_numpy_column(wanted_outputs)
+
+        gradients = self.calculate_gradients(wanted_outputs, actual_outputs)
+        self.update_weights(gradients, learning_rate)
+
+        return self.error.error(wanted_outputs, actual_outputs)
 
     def output_derivatives(self):
         """
@@ -120,14 +108,12 @@ class NeuralNetwork:
         the j-th input neuron
         """
         prev_layer = None
-        for i in range(len(self.layers) - 1, 0, -1):
-            layer = self.layers[i]
-
-            this_layer = layer.weights * np.concatenate(
-                [self.activation_derivative(layer.v)] * layer.weights.shape[1],
-                axis = 1)
+        for values, weights in _reversed_zip(self.v[1:], self.weights):
+            a = np.concatenate([self.activation.f_prime(values)] * weights.shape[1], axis=1)
+            this_layer = weights * a
 
             prev_layer = (prev_layer.dot(this_layer) if prev_layer is not None
                 else this_layer)[:, 1:]
 
+        assert prev_layer.shape == (self.ns[0], self.ns[-1])
         return prev_layer
