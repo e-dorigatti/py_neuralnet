@@ -4,13 +4,9 @@ import errors, activations
 import itertools
 
 
-def _reversed_zip(*args):
-    return itertools.izip(*[reversed(arg) for arg in args])
-
-
 def _to_numpy_column(l):
     if isinstance(l, np.ndarray):
-        ret = l.T if l.shape[0] != 1 else l
+        ret = l.T if l.shape[1] != 1 else l
     else:
         ret = np.array([l]).T
 
@@ -28,7 +24,7 @@ class NeuralNetwork:
         self.y = [ np.zeros((n, 1)) for n in ns ]
 
         # black magic random initialization range 
-        self.weights = [ sqrt(24 / (n1 + n2)) * (np.random.random((n1, n2 + 1)) - 0.5)
+        self.weights = [ sqrt(24.0 / (n1 + n2)) * (np.random.random((n1, n2 + 1)) - 0.5)
             for n1, n2 in itertools.izip(ns[1:], ns[:-1]) ]
 
     def value(self, inputs):
@@ -47,6 +43,13 @@ class NeuralNetwork:
 
         return self.y[-1]
 
+    def prediction_error(self, wanted_outputs, actual_outputs):
+        wanted_outputs = _to_numpy_column(wanted_outputs)
+        actual_outputs = _to_numpy_column(actual_outputs)
+
+        return self.error.error(wanted_outputs, actual_outputs)
+
+
     def calculate_gradients(self, wanted_outputs, actual_outputs):
         """
         Calculates the partial derivatives of the error with respect to the weights
@@ -63,7 +66,7 @@ class NeuralNetwork:
         deltas = (a * b)
 
         gradients = list()
-        for weights, y, v in _reversed_zip(self.weights, self.y[:-1], self.v[:-1]):
+        for weights, y, v in reversed(zip(self.weights, self.y[:-1], self.v[:-1])):
             prev_y = np.vstack([1, y])
             prev_v = np.vstack([1, v])
 
@@ -96,7 +99,7 @@ class NeuralNetwork:
         gradients = self.calculate_gradients(wanted_outputs, actual_outputs)
         self.update_weights(gradients, learning_rate)
 
-        return self.error.error(wanted_outputs, actual_outputs)
+        return self.prediction_error(wanted_outputs, actual_outputs)
 
     def output_derivatives(self):
         """
@@ -108,7 +111,7 @@ class NeuralNetwork:
         the j-th input neuron
         """
         prev_layer = None
-        for values, weights in _reversed_zip(self.v[1:], self.weights):
+        for values, weights in reversed(zip((self.v[1:], self.weights))):
             a = np.concatenate([self.activation.f_prime(values)] * weights.shape[1], axis=1)
             this_layer = weights * a
 
