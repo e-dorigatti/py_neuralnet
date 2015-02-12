@@ -91,7 +91,7 @@ def test_minibatch():
     def learning_rate(epoch):
         return  3000.0 / (1000 + epoch)
 
-    minibatch(nnet, training_examples, len(training_examples), learning_rate, 0.5, stop)
+    minibatch(nnet, training_examples, len(training_examples), learning_rate, 5, stop)
 
     for input, correct in training_examples:
         val = nnet.value(input)[0][0]

@@ -1,4 +1,5 @@
 from itertools import izip
+import numpy as np
 import random
 
 def minibatch(nnet, input_set, batch_size, learning_rate, regularization_coeff, stop):
@@ -14,25 +15,21 @@ def minibatch(nnet, input_set, batch_size, learning_rate, regularization_coeff, 
     while not stop(epoch, error):
         epoch += 1
         batch = random.sample(input_set, batch_size)
-        gradients_accumulator = None
+        gradients_accumulator = [ np.zeros(w.shape) for w in nnet.weights ]
         error = 0.0
 
-        for input, correct in batch:
-            actual = nnet.value(input)
-            error += nnet.error.error(correct, actual) / batch_size
-            gradients = [ g for g in nnet.calculate_gradients(correct, actual)]
+        for inputs, correct in batch:
+            actual = nnet.value(inputs)
+            error += nnet.prediction_error(correct, actual)
+            gradients = [g for g in nnet.calculate_gradients(correct, actual)]
 
             # regularization
-            error += (regularization_coeff / (2 * batch_size) *
-                sum([(g**2).sum() for g in gradients]))
-            for weights, gradient in izip(nnet.weights, gradients):
-                gradient += gradient * regularization_coeff
+            #error += (regularization_coeff / (2.0 * batch_size) *
+            #    sum((g**2).sum() for g in gradients))
 
-            if gradients_accumulator is not None:
-                for accumulator, gradient in izip(gradients_accumulator, gradients):
-                    accumulator += gradient / batch_size
-            else:
-                gradients_accumulator = gradients
+            for accumulator, gradient in izip(gradients_accumulator, gradients):
+                #accumulator += (gradient * regularization_coeff) / batch_size
+                accumulator += gradient / batch_size
 
         lrate = learning_rate(epoch)
         nnet.update_weights(gradients_accumulator, lrate)

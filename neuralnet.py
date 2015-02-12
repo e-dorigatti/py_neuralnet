@@ -111,7 +111,7 @@ class NeuralNetwork:
         the j-th input neuron
         """
         prev_layer = None
-        for values, weights in reversed(zip((self.v[1:], self.weights))):
+        for values, weights in reversed(zip(self.v[1:], self.weights)):
             a = np.concatenate([self.activation.f_prime(values)] * weights.shape[1], axis=1)
             this_layer = weights * a
 
