@@ -77,6 +77,7 @@ class NeuralNetwork:
             b = weights.T.dot(deltas)
             deltas = (a * b)[1:]
 
+        self._input_deltas = deltas
         return reversed(gradients)
 
     def update_weights(self, gradients, learning_rate):
@@ -118,5 +119,5 @@ class NeuralNetwork:
             prev_layer = (prev_layer.dot(this_layer) if prev_layer is not None
                 else this_layer)[:, 1:]
 
-        assert prev_layer.shape == (self.ns[0], self.ns[-1])
+        assert prev_layer.shape == (self.ns[-1], self.ns[0])
         return prev_layer
