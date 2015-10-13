@@ -1,8 +1,10 @@
 from neuralnet import *
 import errors, activations
-
+from genetic import genetic_learn
+from minibatch import minibatch
 from random import randint, uniform
 import matplotlib.pyplot as plt
+
 
 test_list = list()
 def testmethod(function):
@@ -17,8 +19,9 @@ def testmethod(function):
     test_list.append(wrapped)
     return function
 
+
 @testmethod
-def test_forward_propagation():
+def test_forward_propagation(*args, **kwargs):
     nnet = NeuralNetwork([2, 2, 1])
     nnet.weights = [ np.array([
             [ 30, -20, -20 ],
@@ -31,15 +34,15 @@ def test_forward_propagation():
     assert nnet.value([0, 1])[0][0] > 0.95
     assert nnet.value([1, 1])[0][0] < 0.05
 
+
 @testmethod
-def test_backpropagation():
-    training_examples = [([0, 0], [0]), ([0, 1], [1]), ([1, 0], [1]), ([1, 1], [0])]
+def test_backpropagation(training_examples):
     nnet = NeuralNetwork([2, 2, 1])
 
     i, avg_error, last = 0, 100.0, list()
     while avg_error > 0.0025 and i < 25000:
         i += 1
-        learning_rate = 10000.0 / (5000.0 + i)
+        learning_rate = 10
 
         input, correct_output = training_examples[randint(0, len(training_examples) -1)]
         actual_output = nnet.value(input)
@@ -58,7 +61,7 @@ def test_backpropagation():
 
 
 @testmethod
-def test_derivatives():
+def test_derivatives(training_examples):
     nnet = NeuralNetwork([2, 4, 2])
 
     def get_derivatives(inputs):
@@ -78,20 +81,38 @@ def test_derivatives():
             assert ((nnet_deriv - x_deriv)**2).sum() < 0.05
             assert ((nnet_deriv - y_deriv)**2).sum() < 0.05
 
-@testmethod
-def test_minibatch():
-    from minibatch import minibatch
 
-    training_examples = [ ([0, 0], [0]), ([0, 1], [1]), ([1, 0], [1]), ([1, 1], [0])]
+@testmethod
+def test_minibatch(training_examples):
     nnet = NeuralNetwork([2, 2, 1])
 
-    def stop(epoch, error):
-        return error < 0.0025
+    def stop(epoch, error, *args, **kwargs):
+        print epoch, error
+        return epoch > 50 or error < 0.01
 
     def learning_rate(epoch):
         return  3000.0 / (1000 + epoch)
 
-    minibatch(nnet, training_examples, len(training_examples), learning_rate, 5, stop)
+    minibatch(nnet, training_examples, len(training_examples), 2, 0, stop)
+
+    for input, correct in training_examples:
+        val = nnet.value(input)[0][0]
+        assert abs(val - correct[0]) < 0.1
+
+
+@testmethod
+def test_genetic(training_examples):
+    nnet_size = [2, 2, 1]
+
+    def fitness(nnet):
+        error = sum(((nnet.value(inputs) - correct)**2).sum()
+                    for inputs, correct in training_examples)
+        return -error
+
+    def stop(i, pop):
+        return i > 50 or fitness(pop[0]) > -0.001
+
+    nnet = genetic_learn(nnet_size, 25, fitness, stop)
 
     for input, correct in training_examples:
         val = nnet.value(input)[0][0]
@@ -99,5 +120,6 @@ def test_minibatch():
 
 
 if __name__ == '__main__':
+    training_examples = [([0, 0], [0]), ([0, 1], [1]), ([1, 0], [1]), ([1, 1], [0])]
     for test in test_list:
-        test()
+        test(training_examples)

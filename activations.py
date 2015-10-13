@@ -9,7 +9,10 @@ class SigmoidActivation:
     @staticmethod
     @vectorize
     def f(x):
-        return 1.0 / (1.0 + exp(-x))
+        try:
+            return 1.0 / (1.0 + exp(-x))
+        except OverflowError:
+            return 1 if x < 0 else 0
 
     @staticmethod
     @vectorize
@@ -21,7 +24,10 @@ class TanhActivation:
     @staticmethod
     @vectorize
     def f(x):
-        return (1 - exp(-2*x)) / (1 + exp(-2*x))
+        try:
+            return (1 - exp(-2*x)) / (1 + exp(-2*x))
+        except OverflowError:
+            return 1 if x > 0 else -1
 
     @staticmethod
     @vectorize
