@@ -29,7 +29,7 @@ def genetic_learn(nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwargs):
     population = [NeuralNetwork(nnet_size, **nnet_kwargs) for _ in range(pop_size)]
     i, stop = 0, False
     while not stop:
-        new_pop = (combine(nnet1, nnet2, nnet_kwargs)
+        new_pop = (combine(nnet1, nnet2, **nnet_kwargs)
                    for nnet1, nnet2 in itertools.product(population, population))
         #ranked = sorted(itertools.chain(population, new_pop),
         ranked = sorted(new_pop,
@@ -56,12 +56,9 @@ def genetic_learn_spark(sc, nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwa
     i, stop = 0, False
     while not stop:
         netrdd = sc.parallelize(population)
-        new_pop = (netrdd.cartesian(netrdd)
-            .map(lambda (nnet1, nnet2): combine(nnet1, nnet2, nnet_kwargs))
-            .map(lambda n: (fitness_fn(n), n))
-            .sortByKey()
-            .map(lambda (f, n): n)
-            .take(pop_size))
+        population = (netrdd.cartesian(netrdd)
+            .map(lambda (nnet1, nnet2): combine(nnet1, nnet2, **nnet_kwargs))
+            .takeOrdered(pop_size, key=lambda n: -fitness_fn(n)))
 
         i += 1
         stop = stop_fn(i, population)
