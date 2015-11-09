@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 
 
-def combine(nnet1, nnet2, nnet_init_kwargs={}):
+def combine(nnet1, nnet2, **nnet_init_kwargs):
     new_weights = []
     for w1, w2 in itertools.izip(nnet1.weights, nnet2.weights):
         assert w1.shape == w2.shape
@@ -27,7 +27,7 @@ def genetic_learn(nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwargs):
         stop_fn = lambda i, p: i > n
 
     population = [NeuralNetwork(nnet_size, **nnet_kwargs) for _ in range(pop_size)]
-    i, error, stop = 0, 0.0, False
+    i, stop = 0, False
     while not stop:
         new_pop = (combine(nnet1, nnet2, nnet_kwargs)
                    for nnet1, nnet2 in itertools.product(population, population))
@@ -36,6 +36,32 @@ def genetic_learn(nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwargs):
                         key=lambda nnet: fitness_fn(nnet),
                         reverse=True)
         population = ranked[:pop_size]
+
+        i += 1
+        stop = stop_fn(i, population)
+
+    return population[0]
+
+
+def genetic_learn_spark(sc, nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwargs):
+    """ Evolutionary learning for neural networks implemented with spark.
+    First argument is the spark context.
+    """
+    assert hasattr(fitness_fn, '__call__')
+    if not hasattr(stop_fn, '__call__'):
+        epoch_count = int(stop_fn)
+        stop_fn = lambda i, p: i > n
+
+    population = [NeuralNetwork(nnet_size, **nnet_kwargs) for _ in range(pop_size)]
+    i, stop = 0, False
+    while not stop:
+        netrdd = sc.parallelize(population)
+        new_pop = (netrdd.cartesian(netrdd)
+            .map(lambda (nnet1, nnet2): combine(nnet1, nnet2, nnet_kwargs))
+            .map(lambda n: (fitness_fn(n), n))
+            .sortByKey()
+            .map(lambda (f, n): n)
+            .take(pop_size))
 
         i += 1
         stop = stop_fn(i, population)
