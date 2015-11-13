@@ -31,10 +31,7 @@ def genetic_learn(nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwargs):
     while not stop:
         new_pop = (combine(nnet1, nnet2, **nnet_kwargs)
                    for nnet1, nnet2 in itertools.product(population, population))
-        #ranked = sorted(itertools.chain(population, new_pop),
-        ranked = sorted(new_pop,
-                        key=lambda nnet: fitness_fn(nnet),
-                        reverse=True)
+        ranked = sorted(new_pop, key=fitness_fn, reverse=True)
         population = ranked[:pop_size]
 
         i += 1
@@ -56,9 +53,14 @@ def genetic_learn_spark(sc, nnet_size, pop_size, fitness_fn, stop_fn, **nnet_kwa
     i, stop = 0, False
     while not stop:
         netrdd = sc.parallelize(population)
-        population = (netrdd.cartesian(netrdd)
+        temp = (netrdd.cartesian(netrdd)
             .map(lambda (nnet1, nnet2): combine(nnet1, nnet2, **nnet_kwargs))
-            .takeOrdered(pop_size, key=lambda n: -fitness_fn(n)))
+            .keyBy(fitness_fn)
+            .persist())  # this somehow avoids triple sorting
+        population = (temp.sortByKey(ascending=False)
+            .values()
+            .take(pop_size))
+        temp.unpersist()
 
         i += 1
         stop = stop_fn(i, population)
