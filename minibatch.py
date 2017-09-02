@@ -27,9 +27,9 @@ def minibatch(nnet, input_set, batch_size, learning_rate, regularization_coeff, 
             error += (regularization_coeff / (2.0 * batch_size) *
                 sum((g**2).sum() for g in gradients))
 
-            for accumulator, gradient, weights in izip(gradients_accumulator,
-                                                       gradients,
-                                                       nnet.weights):
+            for accumulator, gradient, weights in zip(gradients_accumulator,
+                                                      gradients,
+                                                      nnet.weights):
                 accumulator += gradient + regularization_coeff * weights
 
         gradient = [np.clip(g / batch_size, -10, 10) for g in gradients_accumulator]

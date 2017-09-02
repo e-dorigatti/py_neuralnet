@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 test_list = list()
 def testmethod(function):
     def wrapped(*args, **kwargs):
-        print function.__name__.replace('_', ' ')
+        print(function.__name__.replace('_', ' '))
         try:
             function(*args, **kwargs)
-            print 'PASS\n'
+            print('PASS\n')
         except AssertionError as ae:
-            print 'FAIL (%s)\n' % (ae.message or '<no message>')
+            print('FAIL (%s)\n' % (ae.message or '<no message>'))
     
     test_list.append(wrapped)
     return function
@@ -53,7 +53,7 @@ def test_backpropagation(training_examples):
             last = []
 
     if i == 25000:
-        print 'iteration limit reached, learning might not have converged'
+        print('iteration limit reached, learning might not have converged')
 
     for input, correct in training_examples:
         val = nnet.value(input)[0][0]
@@ -87,7 +87,7 @@ def test_minibatch(training_examples):
     nnet = NeuralNetwork([2, 2, 1])
 
     def stop(epoch, error, *args, **kwargs):
-        print epoch, error
+        print(epoch, error)
         return epoch > 50 or error < 0.01
 
     def learning_rate(epoch):

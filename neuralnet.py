@@ -1,6 +1,7 @@
 from math import exp, sqrt
 import numpy as np
-import errors, activations
+from .errors import common as common_errors
+from .activations import common as common_activations
 import itertools
 
 
@@ -16,8 +17,8 @@ def _to_numpy_column(l):
 
 class NeuralNetwork:
     def __init__(self, ns, activation='sigmoid', error='quadratic'):
-        self.activation = activations.common.get(activation, activation)
-        self.error = errors.common.get(error, error)
+        self.activation = common_activations.get(activation, activation)
+        self.error = common_errors.get(error, error)
         self.ns = ns
         
         self.v = [ np.zeros((n, 1)) for n in ns ]
@@ -25,7 +26,7 @@ class NeuralNetwork:
 
         # black magic random initialization range 
         self.weights = [ sqrt(24.0 / (n1 + n2)) * (np.random.random((n1, n2 + 1)) - 0.5)
-            for n1, n2 in itertools.izip(ns[1:], ns[:-1]) ]
+            for n1, n2 in zip(ns[1:], ns[:-1]) ]
 
     def value(self, inputs):
         """
@@ -86,7 +87,7 @@ class NeuralNetwork:
         the given gradient (as computed by calculate_gradients) and the given
         learning rate.
         """
-        for weights, gradient in itertools.izip(self.weights, gradients):
+        for weights, gradient in zip(self.weights, gradients):
             assert gradient.shape == weights.shape
             weights += gradient * learning_rate;
 

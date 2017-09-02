@@ -1,4 +1,4 @@
-from neuralnet import NeuralNetwork
+from .neuralnet import NeuralNetwork
 import numpy as np
 import itertools
 
@@ -7,13 +7,13 @@ class GeneticAlgorithm:
     def fitness(self, nnet):
         """ Performance evaluation of a single neural network; the higher the better
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def stop(self, epoch, population):
         """ Stopping criterion for learning.
         Population is sorted by fitness in descending order.
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def get_new_neural_network(self, size):
         return NeuralNetwork(size)
@@ -26,7 +26,7 @@ class GeneticAlgorithm:
 
         new_weights = []
         size = [nnet1.weights[0].shape[1] - 1]
-        for w1, w2 in itertools.izip(nnet1.weights, nnet2.weights):
+        for w1, w2 in zip(nnet1.weights, nnet2.weights):
             assert w1.shape == w2.shape
             t = np.random.random(w1.shape) * 3 - 1
             new_weights.append(t * w1 + (1 - t) * w2)
@@ -60,7 +60,7 @@ def genetic_learn_spark(sc, algo, nnet_size, pop_size, num_slices=4):
     while not stop:
         netrdd = sc.parallelize(population, num_slices)
         temp = (netrdd.cartesian(netrdd)
-            .map(lambda (nnet1, nnet2): algo.combine(nnet1, nnet2))
+            .map(lambda nnets: algo.combine(nnets[0], nnets[1]))
             .keyBy(algo.fitness)
             .persist())  # this somehow avoids triple sorting
         population = (temp.sortByKey(ascending=False)
